@@ -96,7 +96,7 @@ function EnemyAction(enemy = Enemy["Average Joe"],hero = Hero["Knight"]) {
     let blockChance = Math.min(Math.max(1-(weightBlocks/weightAttacks),0),1);
     let surrenderChance = Math.min(Math.max(0.5 - enemyHPP,0),1);
     let distractedChance = enemyHPP/10;
-    let evadeChance = (evadeGain/evadeLoss < 1)*evadeGain/evadeLoss/(1 + 3*rand) + (evadeLoss/evadeGain <= 1)*evadeLoss/evadeGain/(2-rand);
+    let evadeChance = ((evadeGain/evadeLoss < 1)*evadeGain/evadeLoss)**(1.5+rand) + ((evadeLoss/evadeGain <= 1)*evadeLoss/evadeGain)**(rand/3);
     if (Math.random() < evadeChance) {
         return "dodge"
     }
