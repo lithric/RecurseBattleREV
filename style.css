@@ -1,0 +1,17 @@
+body {
+    background-color: #000;
+    color: #fff;
+}
+
+.choice {
+    width: 300px;
+}
+
+#events {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+.attack {
+    color: #ff0;
+}
