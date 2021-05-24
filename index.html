@@ -9,11 +9,10 @@
         <link rel="stylesheet" href="style.css">
     </head>
     <body>
-        <input type="list" class="choice" id="HeroIn" list="Heroes">
-        <input type="list" class="choice" id="EnemyIn" list="Enemys">
+        <input type="text" class="choice" id="HeroIn" list="Heroes" onchange="ResetAll(this);">
+        <input type="text" class="choice" id="EnemyIn" list="Enemys" onchange="ResetAll(this);">
+        <button onclick="Action(Hero[this.previousElementSibling.previousElementSibling.placeholder],Enemy[this.previousElementSibling.placeholder]);">fight</button>
         <div id="events">
-            <h1>aaa</h1>
-            <h1>bbb</h1>
         </div>
         <datalist id="Heroes">
         </datalist>

@@ -1,8 +1,6 @@
 var Hero = {};
 var Enemy = {};
 var Boss = {};
-var heroList = document.getElementById("Heroes");
-var enemyList = document.getElementById("Enemys");
 var eventText = document.getElementById("events");
 
 NewHero("Knight","Sir Regretable","Knight","Advanced", 325.0, 44.62, 23.0, 3.0,"Parry");
@@ -20,16 +18,17 @@ function DisplayEvent(event = "") {
     }
 }
 
+
+function DisplayClear() {
+    eventText.innerHTML = "";
+}
+
 function BlockDamage(attack,defense) {
     return (attack+1)/(defense+1);
 }
 
 function EvadeDamage(attack,dodge,health) {
     let chance = dodge/100;
-    let g2Chance = chance * (1 + (1-chance) + (1-chance)**2);
-    let gain = (attack + (attack >= health/2) * (3*attack - health/2) + (attack >= health) * (5*attack - health+1))/3;
-    let loss = attack - BlockDamage(attack,20) + attack*2*(1-g2Chance);
-    console.log((gain/loss < 1)*gain/loss/3 + ((loss/gain <= 1)*loss/gain)**0.3);
     if (Math.random() < chance) {
         return 0;
     }
@@ -44,13 +43,11 @@ function EvadeDamage(attack,dodge,health) {
     }
 }
 
-console.log(EvadeDamage(21,20,21));
-
 function HeroAction(hero = Hero["Knight"],enemy = Enemy["Average Joe"]) {
     let rand = Math.random();
     let chance = hero.Dodge/100;
     let badChance = 1 - chance * (1 + (1-chance) + (1-chance)**2)
-    let heroHPP = hero.HP/hero.FullHP;
+    let heroHPP = hero.HP/hero.DEFAULT.HP;
     let minAttacks = Math.ceil( enemy.HP/hero.Power );
     let maxAttacks = Math.ceil( enemy.HP/BlockDamage(hero.Power,enemy.Block) );
     let minBlocks = Math.ceil( hero.HP/enemy.Power );
@@ -84,7 +81,7 @@ function EnemyAction(enemy = Enemy["Average Joe"],hero = Hero["Knight"]) {
     let rand = Math.random();
     let chance = enemy.Dodge/100;
     let badChance = 1 - chance * (1 + (1-chance) + (1-chance)**2)
-    let enemyHPP = enemy.HP/enemy.FullHP;
+    let enemyHPP = enemy.HP/enemy.DEFAULT.HP;
     let minAttacks = Math.ceil( hero.HP/enemy.Power );
     let maxAttacks = Math.ceil( hero.HP/BlockDamage(enemy.Power,hero.Block) );
     let minBlocks = Math.ceil( enemy.HP/hero.Power );
@@ -95,7 +92,7 @@ function EnemyAction(enemy = Enemy["Average Joe"],hero = Hero["Knight"]) {
     let weightAttacks = rand*minAttacks + (1-rand)*maxAttacks; // less attacks = better
     let blockChance = Math.min(Math.max(1-(weightBlocks/weightAttacks),0),1);
     let surrenderChance = Math.min(Math.max(0.5 - enemyHPP,0),1);
-    let distractedChance = enemyHPP/10;
+    let chargeChance = enemyHPP/10;
     let evadeChance = ((evadeGain/evadeLoss < 1)*evadeGain/evadeLoss)**(1.5+rand) + ((evadeLoss/evadeGain <= 1)*evadeLoss/evadeGain)**(rand/3);
     if (Math.random() < evadeChance) {
         return "dodge"
@@ -106,8 +103,8 @@ function EnemyAction(enemy = Enemy["Average Joe"],hero = Hero["Knight"]) {
     else if (Math.random() < surrenderChance) {
         return "surrender"
     }
-    else if (Math.random() < distractedChance) {
-        return "distracted"
+    else if (Math.random() < chargeChance) {
+        return "charge"
     }
     else {
         return "attack"
@@ -115,10 +112,149 @@ function EnemyAction(enemy = Enemy["Average Joe"],hero = Hero["Knight"]) {
 }
 
 function Action(hero = Hero["Knight"], enemy = Enemy["Average Joe"]) {
-    let heroAction = HeroAction(hero,enemy);
+    console.clear();
+    if (hero == "") {
+        hero = Hero["Knight"];
+    }
+    if (enemy == "") {
+        enemy = Enemy["Average Joe"];
+    }
+    heroAction = HeroAction(hero,enemy);
+    enemyAction = EnemyAction(enemy,hero);
+    let damage = 0;
+    switch (heroAction) {
+        case "run":
+            console.log("the hero gave up and ran away");
+            ReturnToDefaults(hero);
+            ReturnToDefaults(enemy);
+            return
+        case "taunt":
+            enemy.Power *= 2;
+            hero.HP += hero.DEFAULT.HP / 10;
+            DisplayEvent(`${hero.Name} taunts ${enemy.Name}`,`${enemy.Name} increases their attack`);
+            break;
+        case "attack":
+            DisplayEvent(`${hero.Name} attacks ${enemy.Name}...`);
+            switch (enemyAction) {
+                case "dodge":
+                    DisplayEvent(`${enemy.Name} tries to dodge...`)
+                    enemy.HP += enemy.DEFAULT.HP / 10;
+                    damage = EvadeDamage(hero.Power,enemy.Dodge,enemy.DEFAULT.HP);
+                    enemy.HP -= damage;
+                    if (damage == 0) {
+                        DisplayEvent(`${enemy.Name} successfully dodges taking no damage`,`${enemy.Name} is at ${enemy.HP} health`)
+                    }
+                    else if (damage < hero.Power) {
+                        DisplayEvent(`${enemy.Name} gets caught by the attack and takes ${damage} damage`,`${enemy.Name} is at ${enemy.HP} health`)
+                    }
+                    else {
+                        DisplayEvent(`${enemy.Name} dodges into the attack and takes ${damage} damage`,`${enemy.Name} is at ${enemy.HP} health`)
+                    }
+                    break;
+                case "block":
+                    DisplayEvent(`${enemy.Name} is blocking...`)
+                    enemy.Power *= 1.1;
+                    damage = BlockDamage(hero.Power,enemy.Block);
+                    enemy.HP -= damage;
+                    DisplayEvent(`${enemy.Name} takes ${damage} damage`,`${enemy.Name} is at ${enemy.HP} health`)
+                    break;
+                default:
+                    DisplayEvent(`${enemy.Name} does nothing`)
+                    enemy.Power *= 1.2;
+                    enemy.HP -= hero.Power;
+                    DisplayEvent(`${enemy.Name} takes ${hero.Power} damage`,`${enemy.Name} is at ${enemy.HP} health`)
+                    break;
+            }
+            hero.Power = hero.DEFAULT.Power;
+            if (enemy.HP <= 0) {
+                console.log("enemy died");
+                ReturnToDefaults(hero);
+                ReturnToDefaults(enemy);
+                DisplayEvent(`${enemy.Name} dies to the attack`);
+                return;
+            }
+            break;
+    }
+    switch (enemyAction) {
+        case "surrender":
+            console.log("the enemy has surrendered");
+            ReturnToDefaults(hero);
+            ReturnToDefaults(enemy);
+            return
+        case "charge":
+            enemy.Power *= 3;
+            break;
+        case "attack":
+            DisplayEvent(`${enemy.Name} attacks ${hero.Name}...`)
+            switch (heroAction) {
+                case "dodge":
+                    DisplayEvent(`${hero.Name} tries to dodge...`)
+                    hero.HP += hero.DEFAULT.HP / 10;
+                    damage = EvadeDamage(enemy.Power,hero.Dodge,hero.DEFAULT.HP);
+                    hero.HP -= damage;
+                    if (damage == 0) {
+                        DisplayEvent(`${hero.Name} successfully dodges taking no damage`,`${hero.Name} is at ${hero.HP} health`)
+                    }
+                    else if (damage < enemy.Power) {
+                        DisplayEvent(`${hero.Name} gets caught by the attack and takes ${damage} damage`,`${hero.Name} is at ${hero.HP} health`)
+                    }
+                    else {
+                        DisplayEvent(`${hero.Name} dodges into the attack and takes ${damage} damage`,`${hero.Name} is at ${hero.HP} health`)
+                    }
+                case "block":
+                    DisplayEvent(`${hero.Name} is blocking...`)
+                    hero.Power *= 1.1;
+                    damage = BlockDamage(enemy.Power,hero.Block);
+                    hero.HP -= damage;
+                    DisplayEvent(`${hero.Name} takes ${damage} damage`,`${hero.Name} is at ${hero.HP} health`)
+                    break;
+                default:
+                    DisplayEvent(`${hero.Name} does nothing`)
+                    hero.Power *= 1.2;
+                    hero.HP -= enemy.Power;
+                    DisplayEvent(`${hero.Name} takes ${enemy.Power} damage`,`${hero.Name} is at ${hero.HP} health`)
+                    break;
+            }
+            enemy.Power = enemy.DEFAULT.Power;
+            if (hero.HP <= 0) {
+                console.log("hero died");
+                ReturnToDefaults(hero);
+                ReturnToDefaults(enemy);
+                return;
+            }
+            break;
+    }
+    console.table({Hero: {"HP": hero.HP,"Power": hero.Power,"Action": heroAction},Enemy: {"HP": enemy.HP, "Power": enemy.Power,"Action": enemyAction}});
 }
 
-console.log(HeroAction());
+function ReturnToDefaults(...entities) {
+    let i = entities.length;
+    while(i--) {
+        entities[i].Power = entities[i].DEFAULT.Power;
+        entities[i].HP = entities[i].DEFAULT.HP;
+    }
+}
+
+function ResetAll(elm) {
+    for (hero in Hero) {
+        for (properties in Hero[hero]) {
+            if (properties == "DEFAULT") {
+                break;
+            }
+            Hero[hero][properties] = Hero[hero].DEFAULT[properties];
+        }
+    }
+    for (enemy in Enemy) {
+        for (properties in Enemy[enemy]) {
+            if (properties == "DEFAULT") {
+                break;
+            }
+            Enemy[enemy][properties] = Enemy[enemy].DEFAULT[properties];
+        }
+    }
+    elm.placeholder = elm.value;
+    elm.value = "";
+}
 /*
 turn options:
 - enemy attack
